@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trajectory Validation Results</title>
+<meta name="description" content="Validation of metric camera trajectories and dense maps from egocentric video and IMU against motion capture and Aria MPS ground truth.">
+<style>
+:root{--bg:#ffffff;--fg:#1d2127;--muted:#5b6470;--line:#d9dde3;--card:#f6f7f9;--accent:#c62f2b;--ours:#fdeceb;--ref:#eef3fb;--box:#ffffff;--grp:#f3f5f8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15181c;--fg:#e6e8eb;--muted:#9aa3ae;--line:#323840;--card:#1d2126;--accent:#ff6b63;--ours:#3a2222;--ref:#1f2a3a;--box:#1d2126;--grp:#191c21}}
+:root[data-theme="dark"]{--bg:#15181c;--fg:#e6e8eb;--muted:#9aa3ae;--line:#323840;--card:#1d2126;--accent:#ff6b63;--ours:#3a2222;--ref:#1f2a3a;--box:#1d2126;--grp:#191c21}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:1080px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:2rem;line-height:1.25;margin:0 0 8px}
+h2{font-size:1.35rem;margin:48px 0 12px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:28px 0 8px}
+p,li{color:var(--fg)} .lead{color:var(--muted);font-size:1.05rem;margin-top:0}
+.cap{color:var(--muted);font-size:.88rem;margin:6px 0 0}
+nav{display:flex;flex-wrap:wrap;gap:6px 18px;margin:18px 0 8px;font-size:.95rem}
+a{color:var(--accent)}
+.fig{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+.fig img{width:100%;height:auto;display:block;border-radius:6px;background:#fff}
+.fig svg{width:100%;height:auto;display:block}
+.tw{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-weight:600;border-bottom:2px solid var(--line)}
+tr.ours td{background:var(--ours)} tr.ref td{background:var(--ref)}
+.grid{display:grid;grid-template-columns:1fr;gap:18px}
+.grid h3{margin:0 0 6px}
+svg .box{fill:var(--box);stroke:var(--fg);stroke-width:1.3}
+svg .dash{stroke-dasharray:6 4}
+svg .ours{fill:var(--ours);stroke:var(--accent);stroke-width:1.8}
+svg .out{fill:var(--ref)}
+svg .grp{fill:var(--grp);stroke:var(--muted);stroke-width:1.2}
+svg .branch{fill:none;stroke:var(--fg);stroke-width:1.4;stroke-dasharray:2 4;stroke-linecap:round}
+svg .t{fill:var(--fg);font-size:13px;text-anchor:middle;font-weight:600}
+svg .s{fill:var(--muted);font-size:12px;font-weight:400}
+svg .n{fill:var(--fg);font-size:12.5px;font-weight:400}
+svg .lab{fill:var(--fg);font-size:15px;font-weight:700}
+svg .gl{fill:var(--muted);font-size:12.5px;text-anchor:middle;font-weight:600;letter-spacing:.02em}
+svg .arr{stroke:var(--fg);stroke-width:1.6;marker-end:url(#ar)}
+svg .ah{fill:var(--fg)}
+.legend{font-size:.88rem;color:var(--muted)}
+.authors{font-size:1.02rem;margin:0 0 6px} .aff{color:var(--muted)}
+.hero{display:grid;grid-template-columns:1fr;gap:14px;margin:22px 0 4px}
+@media (min-width:760px){.hero{grid-template-columns:1fr 1fr}}
+.hero figure{margin:0} .hero video{width:100%;height:auto;display:block;border-radius:8px;border:1px solid var(--line);background:#fff}
+.hero figcaption{font-size:.88rem;color:var(--muted);margin-top:4px}
+td.src{white-space:normal;min-width:180px;text-align:left}
+ul ul{margin:4px 0 8px}
+code{font-size:.9em}
+</style></head>
+<body><main>
+<h1>Metric trajectories and maps from egocentric video + IMU — validation</h1>
+<p class="authors">Vignesh Radhakrishnan and Mark Hollands<br><span class="aff">School of Sport &amp; Exercise Sciences, Liverpool John Moores University, UK</span></p>
+<p class="lead">How accurate are the camera trajectories, and the maps built from them? 66 trials on four datasets, against motion capture, Aria MPS and building floor plans.</p>
+<nav><a href="#pipeline">Pipeline</a><a href="#metrics">Metrics</a><a href="#datasets">Datasets</a><a href="#models">Models</a><a href="#results">Results</a><a href="#ablations">Ablations</a><a href="#trajectories">Trajectories</a><a href="#maps">ScaRF-SLAM maps</a><a href="#floorplan">Floor-plan check</a></nav>
+
+<h2 id="pipeline">Pipeline</h2>
+<div class="fig"><svg viewBox="0 0 1000 452" role="img" aria-label="Proposed pipeline: images and IMU into a SLAM module with two paths, visual-inertial SLAM, or video-only SLAM followed by EPO and our IMU pre-integration with a VI factor graph; then ScaRF-SLAM, giving a metric point cloud and trajectory. Validation: the same SLAM module with the models we ran, its trajectories compared with ground truth.">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker></defs>
+<text x="10" y="20" class="lab">Proposed pipeline</text>
+<rect x="10" y="62" width="120" height="136" rx="7" class="box"/>
+<text x="70" y="118" class="t"><tspan x="70">Images + IMU</tspan><tspan x="70" dy="16" class="s">egocentric glasses</tspan></text>
+<rect x="160" y="34" width="470" height="172" rx="10" class="grp"/>
+<line x1="132" y1="85" x2="170" y2="85" class="arr"/>
+<line x1="132" y1="163" x2="180" y2="163" class="arr"/>
+<text x="395" y="52" class="gl">SLAM module</text>
+<rect x="172" y="62" width="446" height="46" rx="7" class="box"/>
+<text x="395" y="81" class="t"><tspan x="395">Visual-inertial SLAM</tspan><tspan x="395" dy="16" class="s">metric from images + IMU</tspan></text>
+<rect x="172" y="116" width="446" height="82" rx="8" class="branch"/>
+<text x="395" y="130" class="gl">video-only models: + EPO + our IMU integration</text>
+<rect x="182" y="136" width="124" height="56" rx="7" class="box dash"/>
+<text x="244" y="159" class="t"><tspan x="244">Video-only</tspan><tspan x="244" dy="16">SLAM</tspan></text>
+<line x1="307" y1="164" x2="320" y2="164" class="arr"/>
+<rect x="322" y="136" width="112" height="56" rx="7" class="box"/>
+<text x="378" y="159" class="t"><tspan x="378">EPO</tspan><tspan x="378" dy="16" class="s">pose refinement</tspan></text>
+<line x1="435" y1="164" x2="448" y2="164" class="arr"/>
+<rect x="450" y="136" width="158" height="56" rx="7" class="box ours"/>
+<text x="529" y="152" class="t"><tspan x="529">IMU pre-integration</tspan><tspan x="529" dy="16">+ VI factor graph</tspan><tspan x="529" dy="16" class="s">metric scale, gravity</tspan></text>
+<line x1="632" y1="120" x2="658" y2="120" class="arr"/>
+<rect x="660" y="84" width="140" height="72" rx="7" class="box"/>
+<text x="730" y="116" class="t"><tspan x="730">ScaRF-SLAM</tspan><tspan x="730" dy="16" class="s">dense depth fusion</tspan></text>
+<line x1="802" y1="120" x2="824" y2="120" class="arr"/>
+<rect x="826" y="84" width="164" height="72" rx="7" class="box out"/>
+<text x="908" y="116" class="t"><tspan x="908">Metric 3D point cloud</tspan><tspan x="908" dy="16">+ trajectory</tspan></text>
+<text x="10" y="258" class="lab">Validation: the same SLAM module with the models we ran, against ground truth</text>
+<rect x="10" y="300" width="120" height="136" rx="7" class="box"/>
+<text x="70" y="332" class="t"><tspan x="70">Images + IMU</tspan><tspan x="70" dy="16" class="s">4 datasets</tspan><tspan x="70" dy="16" class="s">mocap · Oxford</tspan><tspan x="70" dy="16" class="s">Aria office</tspan><tspan x="70" dy="16" class="s">SlugTrails</tspan></text>
+<rect x="160" y="272" width="470" height="172" rx="10" class="grp"/>
+<line x1="132" y1="323" x2="170" y2="323" class="arr"/>
+<line x1="132" y1="401" x2="180" y2="401" class="arr"/>
+<text x="395" y="290" class="gl">SLAM module</text>
+<rect x="172" y="300" width="446" height="46" rx="7" class="box"/>
+<text x="395" y="319" class="t"><tspan x="395">Visual-inertial SLAM</tspan><tspan x="395" dy="16" class="n">MASt3R-Fusion · VIGS-SLAM · FoundationVIO</tspan></text>
+<rect x="172" y="354" width="446" height="82" rx="8" class="branch"/>
+<text x="395" y="368" class="gl">video-only models: + EPO + our IMU integration</text>
+<rect x="182" y="374" width="124" height="56" rx="7" class="box dash"/>
+<text x="244" y="397" class="t"><tspan x="244">VidMap</tspan><tspan x="244" dy="16">LingBot-Map</tspan></text>
+<line x1="307" y1="402" x2="320" y2="402" class="arr"/>
+<rect x="322" y="374" width="112" height="56" rx="7" class="box"/>
+<text x="378" y="397" class="t"><tspan x="378">EPO</tspan><tspan x="378" dy="16" class="s">with / without</tspan></text>
+<line x1="435" y1="402" x2="448" y2="402" class="arr"/>
+<rect x="450" y="374" width="158" height="56" rx="7" class="box ours"/>
+<text x="529" y="390" class="t"><tspan x="529">IMU pre-integration</tspan><tspan x="529" dy="16">+ VI factor graph</tspan><tspan x="529" dy="16" class="s">ours: + VI / + VIS</tspan></text>
+<line x1="632" y1="358" x2="658" y2="358" class="arr"/>
+<rect x="660" y="324" width="330" height="68" rx="7" class="box out"/>
+<text x="825" y="350" class="t"><tspan x="825">Trajectory vs ground truth</tspan><tspan x="825" dy="16" class="s">motion capture · Aria MPS · floor plans</tspan><tspan x="825" dy="16" class="s">ATE · W-AUC · RPE</tspan></text>
+</svg></div>
+<p class="legend">The SLAM module has two paths. Visual-inertial SLAM gives a metric trajectory by itself. Video-only SLAM (dashed: no IMU, scale unknown) is refined by EPO and then made metric by our IMU pre-integration and VI factor graph (red) — the dotted box marks the steps applied to the video-only models only. ScaRF-SLAM fuses dense depth along the trajectory into a metric point cloud. For validation, every trajectory is also compared with ground truth.</p>
+
+<div class="hero"><figure><video src="assets/video_mocap.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of Mocap (Vicon / Qualisys) building up along the camera path"></video><figcaption>Mocap (Vicon / Qualisys) — Vicon_2</figcaption></figure><figure><video src="assets/video_oxford.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of Oxford Day & Night building up along the camera path"></video><figcaption>Oxford Day & Night — ORI_s10</figcaption></figure><figure><video src="assets/video_aria_office.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of Aria office building up along the camera path"></video><figcaption>Aria office — ff-2</figcaption></figure><figure><video src="assets/video_slugtrails.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of SlugTrails building up along the camera path"></video><figcaption>SlugTrails — PS_2_0</figcaption></figure></div>
+<p class="cap">ScaRF-SLAM maps building up along our VidMap + VI trajectories, one trial per dataset (camera frame top right). Each point appears when the camera first sees it.</p>
+
+<h2 id="metrics">Metrics</h2>
+<p>Every trajectory is compared with the ground truth on the frames matched by timestamp (±20 ms). Models that use the IMU should be metric, so they are aligned rigidly (<b>SE(3)</b>, scale fixed at 1); the video-only models have an arbitrary scale and are aligned with a fitted scale (<b>Sim(3)</b>, marked †).</p>
+<ul>
+<li><b>ATE</b> (absolute trajectory error): RMSE of the camera-position error after aligning the whole trajectory (Umeyama) — <a href="https://github.com/MichaelGrupp/evo"><code>evo</code></a>. <b>Rotation error</b>: RMSE of the orientation error after the same alignment.</li>
+<li><b>W-AUC</b> (windowed AUC), as proposed in <a href="https://github.com/cvg/vidmap">VidMap</a> and computed with its evaluator.
+  <ul>
+  <li><i>How.</i> For every frame, a window of W metres of path is centred on it; the trajectory is aligned to the ground truth using only the frames in that window, and the centre frame's translation error is kept — the windowed translation error. W-AUC is the area under the cumulative curve of these per-frame errors (the fraction of frames with error ≤ t, for t from 0 up to 5 % of W), as a percentage: 100 % if every frame is exact, 0 % if none is within 5 % of W. W = 10, 25, 50 and 100 m, and the full trajectory (threshold 5 % of its length).</li>
+  <li><i>Why.</i> On a long trajectory a single global alignment is dominated by long-range drift, which can hide how good the trajectory is locally. W-AUC measures the error after local alignment, so it is better suited to long videos — here up to 500 m.</li>
+  <li><i>Our change.</i> VidMap aligns each window with Sim(3). We keep that for the video-only models (†) but use SE(3) for the models that use the IMU, so that a local scale error counts against them.</li>
+  </ul></li>
+<li><b>RPE 1 m</b> (relative pose error), as in <a href="https://github.com/ori-drs/FoundationVIO">FoundationVIO</a>: the error of the motion between poses 1 m of path apart, with no alignment and no scale correction — the metric drift per metre walked (translation m/m, rotation deg/m), RMSE — <code>evo</code>. Models that use the IMU only.</li>
+</ul>
+
+<h2 id="datasets">Datasets</h2>
+<div class="tw"><table><thead><tr><th>dataset</th><th>recordings</th><th>sensor (as given to every model)</th><th>ground truth</th><th>trials</th><th>path per trial</th><th>source</th></tr></thead><tbody>
+<tr><td><b>Mocap (Vicon / Qualisys)</b></td><td>Own recordings: Pupil Labs Neon glasses, Vicon and Qualisys motion-capture rooms</td><td>Neon scene camera + IMU (~110 Hz)</td><td>motion-capture pose of the glasses × camera extrinsic</td><td>6</td><td>34–58 m (median 44 m)</td><td class='src'>this work</td></tr>
+<tr><td><b>Oxford Day & Night</b></td><td>Oxford Day & Night, Robotics Institute: 21 sessions in daylight and at night</td><td>Project Aria (rendered as a Neon camera); IMU 1 kHz and 110 Hz</td><td>multi-session MPS (self-consistent to ~0.5 cm)</td><td>42</td><td>31–213 m (median 90 m)</td><td class='src'><a href="https://huggingface.co/datasets/active-vision-lab/oxford-day-and-night">Oxford Day and Night</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</td></tr>
+<tr><td><b>Aria office</b></td><td>Aria office: 6 recordings (ff-1…3, gf-1…3)</td><td>Project Aria (rendered as a Neon camera); IMU 1 kHz and 110 Hz</td><td>single-session MPS</td><td>12</td><td>29–90 m (median 55 m)</td><td class='src'><a href="https://drive.google.com/drive/folders/1bxeWuI7iZ_19IX0bpkuoyeWR1ZS0f-a0">Aria Office dataset</a> (released with <a href="https://github.com/ori-drs/FoundationVIO">FoundationVIO</a>)</td></tr>
+<tr><td><b>SlugTrails</b></td><td>SlugTrails: 6 floors of 3 university buildings</td><td>Project Aria (rendered as a Neon camera); IMU 1 kHz</td><td>single-session MPS; and their laser-anchored floor-plan positions (~0.15 m)</td><td>6</td><td>221–336 m (median 315 m)</td><td class='src'><a href="https://huggingface.co/datasets/Head-inthe-Cloud/SlugTrails">SlugTrails 1.0</a>, <a href="https://arxiv.org/abs/2609.19876">Cheng &amp; Manduchi</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</td></tr>
+</tbody></table></div>
+<p class="cap">The Aria recordings are rendered as if a Neon scene camera had recorded them (same position and orientation, Neon's lens), so every model sees the same kind of input as on the Neon glasses; the 110 Hz variant is Aria's IMU averaged down to Neon's rate.</p>
+
+<h2 id="models">Models</h2>
+<div class="tw"><table><thead><tr><th>model</th><th>what it is</th><th>alignment to the ground truth</th></tr></thead><tbody><tr><td>MASt3R-Fusion</td><td>visual-inertial SLAM (baseline)</td><td>SE(3)</td></tr><tr><td>VIGS-SLAM</td><td>visual-inertial Gaussian-splatting SLAM (baseline)</td><td>SE(3)</td></tr><tr><td>FoundationVIO</td><td>visual-inertial odometry with a geometry foundation model and loop closure (baseline)</td><td>SE(3)</td></tr><tr><td>VidMap</td><td>video-only SLAM / mapping</td><td>Sim(3) †</td></tr><tr><td>LingBot-Map</td><td>video-only streaming reconstruction</td><td>Sim(3) †</td></tr><tr><td>+ EPO</td><td>edge-based pose refinement of the video-only trajectory</td><td>Sim(3) †</td></tr><tr><td>+ VI (ours)</td><td>IMU pre-integration + VI factor graph re-optimising the video poses (metric scale, gravity)</td><td>SE(3)</td></tr><tr><td>+ VIS (ours)</td><td>the video poses at the VI graph's metric scale, interpolated to every frame</td><td>SE(3)</td></tr></tbody></table></div>
+
+<h2 id="results">Results</h2>
+<h3>ATE — absolute trajectory error (m, RMSE)</h3><div class="tw"><table><thead><tr><th>model</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>0.166</td><td>0.277</td><td>0.111</td><td>3.421</td></tr>
+<tr><td>VIGS-SLAM</td><td>0.637</td><td>5.225</td><td>0.602</td><td>–</td></tr>
+<tr><td>FoundationVIO</td><td>0.590</td><td>0.569</td><td>0.067</td><td>4.672</td></tr>
+<tr><td>VidMap †</td><td>0.055</td><td><b>0.175</b></td><td><b>0.017</b></td><td><b>3.276</b></td></tr>
+<tr><td>VidMap + EPO †</td><td><b>0.048</b></td><td>0.188</td><td>0.030</td><td>3.386</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>0.082</td><td>0.201</td><td>0.048</td><td>3.863</td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>0.088</td><td>0.550</td><td>0.085</td><td>25.888</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>0.065</td><td>0.207</td><td>0.039</td><td>3.507</td></tr>
+<tr><td>LingBot-Map †</td><td>0.248</td><td>2.310</td><td>0.344</td><td>–</td></tr>
+<tr><td>LingBot-Map + EPO †</td><td>0.277</td><td>2.439</td><td>0.327</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td>0.273</td><td>2.654</td><td>0.592</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>0.321</td><td>5.247</td><td>0.640</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>0.303</td><td>2.802</td><td>0.686</td><td>–</td></tr>
+</tbody></table></div><p class="cap">Median over trials; Aria datasets include both IMU rates (FoundationVIO: 1 kHz only). Best per dataset in bold; – = not run. SE(3) alignment (scale fixed at 1) for the models that use the IMU; † Sim(3) (scale fitted) for the video-only models, whose scale is arbitrary.</p><h3>Rotation error (deg, RMSE, after the same alignment)</h3><div class="tw"><table><thead><tr><th>model</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>2.22</td><td>1.51</td><td>0.90</td><td><b>3.93</b></td></tr>
+<tr><td>VIGS-SLAM</td><td>2.22</td><td>94.48</td><td>0.44</td><td>–</td></tr>
+<tr><td>FoundationVIO</td><td>12.81</td><td>3.28</td><td>0.86</td><td>11.98</td></tr>
+<tr><td>VidMap †</td><td>2.25</td><td>1.71</td><td><b>0.33</b></td><td>10.51</td></tr>
+<tr><td>VidMap + EPO †</td><td>2.33</td><td>1.69</td><td>0.40</td><td>10.61</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>2.42</td><td><b>1.15</b></td><td>0.44</td><td>10.09</td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>2.38</td><td>1.27</td><td>0.45</td><td>15.48</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>2.51</td><td>2.30</td><td>2.05</td><td>10.73</td></tr>
+<tr><td>LingBot-Map †</td><td>2.72</td><td>29.35</td><td>2.56</td><td>–</td></tr>
+<tr><td>LingBot-Map + EPO †</td><td>2.73</td><td>29.30</td><td>2.39</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td><b>2.12</b></td><td>4.55</td><td>2.29</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>2.80</td><td>7.98</td><td>2.04</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>2.72</td><td>29.35</td><td>2.56</td><td>–</td></tr>
+</tbody></table></div><p class="cap">Median over trials; Aria datasets include both IMU rates (FoundationVIO: 1 kHz only). Best per dataset in bold; – = not run.</p><h3>W-AUC over 10 m windows (%, higher is better)</h3><div class="tw"><table><thead><tr><th>model</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>77.5</td><td>87.9</td><td>90.8</td><td>74.3</td></tr>
+<tr><td>VIGS-SLAM</td><td>16.2</td><td>17.9</td><td>62.1</td><td>–</td></tr>
+<tr><td>FoundationVIO</td><td>66.1</td><td>88.6</td><td>95.1</td><td>83.6</td></tr>
+<tr><td>VidMap †</td><td><b>93.2</b></td><td><b>94.4</b></td><td><b>98.2</b></td><td><b>93.9</b></td></tr>
+<tr><td>VidMap + EPO †</td><td>92.7</td><td>89.8</td><td>96.9</td><td>26.8</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>91.8</td><td>93.9</td><td>97.5</td><td>92.7</td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>90.7</td><td>84.0</td><td>95.4</td><td>26.9</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>91.8</td><td>92.4</td><td>96.3</td><td>89.9</td></tr>
+<tr><td>LingBot-Map †</td><td>79.7</td><td>59.5</td><td>81.6</td><td>–</td></tr>
+<tr><td>LingBot-Map + EPO †</td><td>76.1</td><td>33.3</td><td>83.3</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td>73.0</td><td>37.6</td><td>60.9</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>68.3</td><td>11.9</td><td>70.3</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>68.3</td><td>36.2</td><td>58.3</td><td>–</td></tr>
+</tbody></table></div><p class="cap">Median over trials; Aria datasets include both IMU rates (FoundationVIO: 1 kHz only). Best per dataset in bold; – = not run. Windowed translation error with 10 m windows (SE(3), or Sim(3) †), AUC up to 0.5 m (5 % of the window); see Metrics.</p><h3>W-AUC over 25 m windows (%, higher is better)</h3><div class="tw"><table><thead><tr><th>model</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>88.8</td><td>91.3</td><td>94.0</td><td>67.1</td></tr>
+<tr><td>VIGS-SLAM</td><td>52.3</td><td>4.1</td><td>64.0</td><td>–</td></tr>
+<tr><td>FoundationVIO</td><td>71.5</td><td>87.2</td><td>96.6</td><td>80.7</td></tr>
+<tr><td>VidMap †</td><td><b>96.8</b></td><td><b>95.6</b></td><td><b>98.9</b></td><td><b>93.2</b></td></tr>
+<tr><td>VidMap + EPO †</td><td>96.8</td><td>93.8</td><td>98.1</td><td>37.6</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>95.0</td><td>93.4</td><td>98.2</td><td>91.0</td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>94.7</td><td>83.2</td><td>95.1</td><td>16.9</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>96.2</td><td>92.9</td><td>97.8</td><td>88.8</td></tr>
+<tr><td>LingBot-Map †</td><td>88.2</td><td>62.1</td><td>86.3</td><td>–</td></tr>
+<tr><td>LingBot-Map + EPO †</td><td>86.4</td><td>48.9</td><td>88.0</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td>83.2</td><td>32.5</td><td>64.4</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>81.1</td><td>8.9</td><td>67.3</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>81.3</td><td>34.7</td><td>65.1</td><td>–</td></tr>
+</tbody></table></div><p class="cap">Median over trials; Aria datasets include both IMU rates (FoundationVIO: 1 kHz only). Best per dataset in bold; – = not run. As above, windows of 25 m, threshold 1.25 m.</p><h3>RPE over 1 m — translation (m/m, RMSE)</h3><div class="tw"><table><thead><tr><th>model</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>0.121</td><td>0.071</td><td>0.054</td><td>0.445</td></tr>
+<tr><td>VIGS-SLAM</td><td>0.491</td><td>1.239</td><td>0.193</td><td>–</td></tr>
+<tr><td>FoundationVIO</td><td>0.160</td><td>0.056</td><td>0.024</td><td>0.156</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td><b>0.049</b></td><td><b>0.036</b></td><td><b>0.012</b></td><td><b>0.055</b></td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>0.050</td><td>0.080</td><td>0.022</td><td>3.143</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>0.059</td><td>0.047</td><td>0.037</td><td>0.089</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td>0.108</td><td>0.551</td><td>0.178</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>0.130</td><td>1.214</td><td>0.152</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>0.149</td><td>0.432</td><td>0.203</td><td>–</td></tr>
+</tbody></table></div><p class="cap">Median over trials; Aria datasets include both IMU rates (FoundationVIO: 1 kHz only). Best per dataset in bold; – = not run. As FoundationVIO: pose pairs 1 m of path apart, no alignment and no scale correction — the metric drift per metre walked. Models that use the IMU only.</p><h3>RPE over 1 m — rotation (deg/m, RMSE)</h3><div class="tw"><table><thead><tr><th>model</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>1.94</td><td>0.46</td><td>0.39</td><td>3.19</td></tr>
+<tr><td>VIGS-SLAM</td><td>2.49</td><td>4.45</td><td><b>0.23</b></td><td>–</td></tr>
+<tr><td>FoundationVIO</td><td>3.38</td><td><b>0.33</b></td><td>0.28</td><td>0.46</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>1.29</td><td>0.47</td><td>0.33</td><td><b>0.41</b></td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>1.31</td><td>0.46</td><td>0.34</td><td>1.09</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>2.58</td><td>2.59</td><td>2.60</td><td>3.57</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td><b>1.24</b></td><td>0.68</td><td>0.41</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>1.37</td><td>1.17</td><td>0.39</td><td>–</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>2.22</td><td>6.78</td><td>1.55</td><td>–</td></tr>
+</tbody></table></div><p class="cap">Median over trials; Aria datasets include both IMU rates (FoundationVIO: 1 kHz only). Best per dataset in bold; – = not run.</p>
+
+<h2 id="ablations">Ablations</h2>
+<h3>IMU rate: 1 kHz vs 110 Hz</h3>
+<p>The same Aria recordings with the IMU at its native ~1 kHz and averaged down to Neon's 110 Hz (Oxford and Aria office, the recordings run at both rates).</p>
+<div class="tw"><table><thead><tr><th>model</th><th>recordings</th><th>ATE (m)<br>1 kHz</th><th>ATE (m)<br>110 Hz</th><th>1 kHz better</th><th>RPE 1 m (m/m)<br>1 kHz</th><th>RPE 1 m (m/m)<br>110 Hz</th><th>1 kHz better</th></tr></thead><tbody>
+<tr><td>MASt3R-Fusion</td><td>27</td><td>0.258</td><td>0.234</td><td>9/27</td><td>0.067</td><td>0.070</td><td>11/27</td></tr>
+<tr><td>VIGS-SLAM</td><td>27</td><td>3.281</td><td>1.534</td><td>12/27</td><td>0.808</td><td>0.454</td><td>17/27</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>27</td><td>0.143</td><td>0.148</td><td>16/27</td><td>0.029</td><td>0.032</td><td>24/27</td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>27</td><td>0.544</td><td>0.533</td><td>13/27</td><td>0.074</td><td>0.074</td><td>22/27</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>27</td><td>0.122</td><td>0.122</td><td>12/27</td><td>0.044</td><td>0.044</td><td>13/27</td></tr>
+<tr class="ours"><td>LingBot-Map + VI</td><td>27</td><td>2.254</td><td>2.265</td><td>20/27</td><td>0.355</td><td>0.352</td><td>21/27</td></tr>
+<tr class="ours"><td>LingBot-Map + EPO + VI</td><td>27</td><td>4.795</td><td>4.792</td><td>19/27</td><td>1.083</td><td>1.085</td><td>19/27</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS</td><td>27</td><td>2.439</td><td>2.453</td><td>18/27</td><td>0.398</td><td>0.392</td><td>12/27</td></tr>
+</tbody></table></div>
+<p class="cap">Median over recordings; "1 kHz better": recordings where the 1 kHz run has the lower error. FoundationVIO was run at 1 kHz only.</p>
+<h3>EPO refinement: without vs with</h3>
+<div class="tw"><table><thead><tr><th>without → with EPO</th><th>Mocap (Vicon / Qualisys)</th><th>Oxford Day & Night</th><th>Aria office</th><th>SlugTrails</th><th>EPO better</th></tr></thead><tbody>
+<tr><td>VidMap † → + EPO</td><td>0.055 → 0.048</td><td>0.175 → 0.188</td><td>0.017 → 0.030</td><td>3.276 → 3.386</td><td>7/66</td></tr>
+<tr class="ours"><td>VidMap + VI → + EPO</td><td>0.082 → 0.088</td><td>0.201 → 0.550</td><td>0.048 → 0.085</td><td>3.863 → 25.888</td><td>8/66</td></tr>
+<tr class="ours"><td>VidMap + VIS → + EPO</td><td>0.065 → 0.071</td><td>0.207 → 0.589</td><td>0.039 → 0.090</td><td>3.507 → 26.511</td><td>8/66</td></tr>
+<tr><td>LingBot-Map † → + EPO</td><td>0.248 → 0.277</td><td>2.310 → 2.439</td><td>0.344 → 0.327</td><td>–</td><td>15/60</td></tr>
+<tr class="ours"><td>LingBot-Map + VI → + EPO</td><td>0.273 → 0.321</td><td>2.654 → 5.247</td><td>0.592 → 0.640</td><td>–</td><td>15/60</td></tr>
+<tr class="ours"><td>LingBot-Map + VIS → + EPO</td><td>0.303 → 0.343</td><td>2.802 → 5.360</td><td>0.686 → 0.604</td><td>–</td><td>15/60</td></tr>
+</tbody></table></div>
+<p class="cap">ATE (m), median over trials per dataset, with the alignment of the table above (Sim(3) † for the video-only trajectories, SE(3) once the IMU is added); "EPO better": trials (all datasets) where the EPO-refined trajectory has the lower ATE.</p>
+
+<h2 id="trajectories">Trajectories</h2>
+<div class="fig"><img src="assets/trajectories.png" alt="Top-down camera paths of one trial per dataset against the ground truth" loading="lazy"></div>
+
+<h2 id="maps">ScaRF-SLAM maps</h2>
+<p>Dense maps from ScaRF-SLAM given our VidMap + VI trajectories (one trial per dataset): straight walls and single copies of surfaces mean the trajectory is consistent in metric scale.</p>
+<div class="grid"><div class="fig"><h3>Mocap (Vicon / Qualisys) — Vicon_2</h3><img src="assets/map_mocap.png" alt="ScaRF-SLAM map of Mocap (Vicon / Qualisys), Vicon_2, with the camera path" loading="lazy"><p class="cap">8.3 M points at 1 cm voxels (shown at 3 cm), 50 m of camera path; poses from VidMap + VI.</p></div><div class="fig"><h3>Oxford Day & Night — ORI_s10</h3><img src="assets/map_oxford.png" alt="ScaRF-SLAM map of Oxford Day & Night, ORI_s10_1kHz, with the camera path" loading="lazy"><p class="cap">9.9 M points at 1 cm voxels (shown at 3 cm), 73 m of camera path; poses from VidMap + VI.</p></div><div class="fig"><h3>Aria office — ff-2</h3><img src="assets/map_aria_office.png" alt="ScaRF-SLAM map of Aria office, ff-2_1kHz, with the camera path" loading="lazy"><p class="cap">9.4 M points at 1 cm voxels (shown at 3 cm), 71 m of camera path; poses from VidMap + VI.</p></div><div class="fig"><h3>SlugTrails — PS_2_0</h3><img src="assets/map_slugtrails.png" alt="ScaRF-SLAM map of SlugTrails, PS_2_0_1kHz, with the camera path" loading="lazy"><p class="cap">58.9 M points at 1 cm voxels (shown at 3 cm), 285 m of camera path; poses from VidMap + VI.</p></div></div>
+
+<h2 id="floorplan">Floor-plan check (SlugTrails)</h2>
+<p>SlugTrails also provides positions anchored to laser-measured markers on the building floor plans (~0.15 m), independent of Aria MPS. Position-only ATE against them, including Aria's own MPS:</p>
+<div class="tw"><table><thead><tr><th>trajectory</th><th>ATE SE(3) (m)</th><th>ATE Sim(3) (m)</th><th>Sim(3) scale</th></tr></thead><tbody>
+<tr class="ref"><td>Aria MPS (the ground truth above)</td><td>0.243</td><td>0.145</td><td>1.006</td></tr>
+<tr><td>MASt3R-Fusion</td><td>3.529</td><td>2.509</td><td>1.071</td></tr>
+<tr><td>FoundationVIO</td><td>4.786</td><td>4.691</td><td>1.013</td></tr>
+<tr><td>VidMap †</td><td>3.878</td><td>3.252</td><td>1.037</td></tr>
+<tr><td>VidMap + EPO †</td><td>3.974</td><td>3.365</td><td>1.025</td></tr>
+<tr class="ours"><td>VidMap + VI</td><td>3.804</td><td>3.073</td><td>1.014</td></tr>
+<tr class="ours"><td>VidMap + EPO + VI</td><td>26.083</td><td>11.058</td><td>42.031</td></tr>
+<tr class="ours"><td>VidMap + VIS</td><td>3.563</td><td>3.143</td><td>1.022</td></tr>
+</tbody></table></div>
+
+</main></body></html>
