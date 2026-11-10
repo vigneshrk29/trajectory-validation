@@ -50,6 +50,11 @@ svg .ah{fill:var(--fg)}
 td.src{white-space:normal;min-width:180px;text-align:left}
 ul ul{margin:4px 0 8px}
 code{font-size:.9em}
+svg .brk{fill:none;stroke:var(--fg);stroke-width:1.6}
+svg polyline.arr{fill:none}
+svg .cite{fill:var(--accent);font-size:11.5px;text-anchor:middle;text-decoration:underline}
+svg .off{opacity:.3}
+.fig.wide{width:min(1480px,calc(100vw - 32px));box-sizing:border-box;position:relative;left:50%;transform:translateX(-50%)}
 </style></head>
 <body><main>
 <h1>Metric trajectories and maps from egocentric video + IMU — validation</h1>
@@ -58,57 +63,73 @@ code{font-size:.9em}
 <nav><a href="#pipeline">Pipeline</a><a href="#metrics">Metrics</a><a href="#datasets">Datasets</a><a href="#models">Models</a><a href="#results">Results</a><a href="#ablations">Ablations</a><a href="#trajectories">Trajectories</a><a href="#maps">ScaRF-SLAM maps</a><a href="#floorplan">Floor-plan check</a></nav>
 
 <h2 id="pipeline">Pipeline</h2>
-<div class="fig"><svg viewBox="0 0 1000 452" role="img" aria-label="Proposed pipeline: images and IMU into a SLAM module with two paths, visual-inertial SLAM, or video-only SLAM followed by EPO and our IMU pre-integration with a VI factor graph; then ScaRF-SLAM, giving a metric point cloud and trajectory. Validation: the same SLAM module with the models we ran, its trajectories compared with ground truth.">
+<div class="fig wide"><svg viewBox="0 0 1479 460" role="img" aria-label="Validation pipeline: Pupil Labs Neon glasses and three IMUs (pelvis, left and right foot) into calibration (based on the WGL CMP calibration) and time synchronisation. Images and IMU from 4 datasets (mocap, Oxford, Aria office, SlugTrails) into the SLAM module with the models we ran: visual-inertial SLAM (MASt3R-Fusion, VIGS-SLAM, FoundationVIO), or video-only SLAM (VidMap, LingBot-Map) with and without EPO and our IMU pre-integration with a VI factor graph; the trajectories compared with ground truth (motion capture, Aria MPS, floor plans; ATE, W-AUC, RPE). Greyed out (not validated here): the eye-tracking and biomechanical branches.">
 <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker></defs>
-<text x="10" y="20" class="lab">Proposed pipeline</text>
-<rect x="10" y="62" width="120" height="136" rx="7" class="box"/>
-<text x="70" y="118" class="t"><tspan x="70">Images + IMU</tspan><tspan x="70" dy="16" class="s">egocentric glasses</tspan></text>
-<rect x="160" y="34" width="470" height="172" rx="10" class="grp"/>
-<line x1="132" y1="85" x2="170" y2="85" class="arr"/>
-<line x1="132" y1="163" x2="180" y2="163" class="arr"/>
-<text x="395" y="52" class="gl">SLAM module</text>
-<rect x="172" y="62" width="446" height="46" rx="7" class="box"/>
-<text x="395" y="81" class="t"><tspan x="395">Visual-inertial SLAM</tspan><tspan x="395" dy="16" class="s">metric from images + IMU</tspan></text>
-<rect x="172" y="116" width="446" height="82" rx="8" class="branch"/>
-<text x="395" y="130" class="gl">video-only models: + EPO + our IMU integration</text>
-<rect x="182" y="136" width="124" height="56" rx="7" class="box dash"/>
-<text x="244" y="159" class="t"><tspan x="244">Video-only</tspan><tspan x="244" dy="16">SLAM</tspan></text>
-<line x1="307" y1="164" x2="320" y2="164" class="arr"/>
-<rect x="322" y="136" width="112" height="56" rx="7" class="box"/>
-<text x="378" y="159" class="t"><tspan x="378">EPO</tspan><tspan x="378" dy="16" class="s">pose refinement</tspan></text>
-<line x1="435" y1="164" x2="448" y2="164" class="arr"/>
-<rect x="450" y="136" width="158" height="56" rx="7" class="box ours"/>
-<text x="529" y="152" class="t"><tspan x="529">IMU pre-integration</tspan><tspan x="529" dy="16">+ VI factor graph</tspan><tspan x="529" dy="16" class="s">metric scale, gravity</tspan></text>
-<line x1="632" y1="120" x2="658" y2="120" class="arr"/>
-<rect x="660" y="84" width="140" height="72" rx="7" class="box"/>
-<text x="730" y="116" class="t"><tspan x="730">ScaRF-SLAM</tspan><tspan x="730" dy="16" class="s">dense depth fusion</tspan></text>
-<line x1="802" y1="120" x2="824" y2="120" class="arr"/>
-<rect x="826" y="84" width="164" height="72" rx="7" class="box out"/>
-<text x="908" y="116" class="t"><tspan x="908">Metric 3D point cloud</tspan><tspan x="908" dy="16">+ trajectory</tspan></text>
-<text x="10" y="258" class="lab">Validation: the same SLAM module with the models we ran, against ground truth</text>
-<rect x="10" y="300" width="120" height="136" rx="7" class="box"/>
-<text x="70" y="332" class="t"><tspan x="70">Images + IMU</tspan><tspan x="70" dy="16" class="s">4 datasets</tspan><tspan x="70" dy="16" class="s">mocap · Oxford</tspan><tspan x="70" dy="16" class="s">Aria office</tspan><tspan x="70" dy="16" class="s">SlugTrails</tspan></text>
-<rect x="160" y="272" width="470" height="172" rx="10" class="grp"/>
-<line x1="132" y1="323" x2="170" y2="323" class="arr"/>
-<line x1="132" y1="401" x2="180" y2="401" class="arr"/>
-<text x="395" y="290" class="gl">SLAM module</text>
-<rect x="172" y="300" width="446" height="46" rx="7" class="box"/>
-<text x="395" y="319" class="t"><tspan x="395">Visual-inertial SLAM</tspan><tspan x="395" dy="16" class="n">MASt3R-Fusion · VIGS-SLAM · FoundationVIO</tspan></text>
-<rect x="172" y="354" width="446" height="82" rx="8" class="branch"/>
-<text x="395" y="368" class="gl">video-only models: + EPO + our IMU integration</text>
-<rect x="182" y="374" width="124" height="56" rx="7" class="box dash"/>
-<text x="244" y="397" class="t"><tspan x="244">VidMap</tspan><tspan x="244" dy="16">LingBot-Map</tspan></text>
-<line x1="307" y1="402" x2="320" y2="402" class="arr"/>
-<rect x="322" y="374" width="112" height="56" rx="7" class="box"/>
-<text x="378" y="397" class="t"><tspan x="378">EPO</tspan><tspan x="378" dy="16" class="s">with / without</tspan></text>
-<line x1="435" y1="402" x2="448" y2="402" class="arr"/>
-<rect x="450" y="374" width="158" height="56" rx="7" class="box ours"/>
-<text x="529" y="390" class="t"><tspan x="529">IMU pre-integration</tspan><tspan x="529" dy="16">+ VI factor graph</tspan><tspan x="529" dy="16" class="s">ours: + VI / + VIS</tspan></text>
-<line x1="632" y1="358" x2="658" y2="358" class="arr"/>
-<rect x="660" y="324" width="330" height="68" rx="7" class="box out"/>
-<text x="825" y="350" class="t"><tspan x="825">Trajectory vs ground truth</tspan><tspan x="825" dy="16" class="s">motion capture · Aria MPS · floor plans</tspan><tspan x="825" dy="16" class="s">ATE · W-AUC · RPE</tspan></text>
+<text x="10" y="20" class="lab">Validation: the same SLAM module with the models we ran, against ground truth</text>
+<image href="assets/setup.png" x="10" y="44" width="249" height="400" preserveAspectRatio="xMidYMid meet"/>
+<polyline points="263,78.09836065573771 297,78.09836065573771" class="arr"/>
+<polyline points="263,204.65573770491804 267,204.65573770491804 267,389.57377049180326 263,389.57377049180326" class="brk"/>
+<line x1="263" y1="360.0655737704918" x2="267" y2="360.0655737704918" class="brk"/>
+<polyline points="267,360.0655737704918 297,360.0655737704918" class="arr"/>
+<rect x="299" y="44" width="170" height="400" rx="7" class="box"/>
+<text x="384.0" y="230.0" class="t"><tspan x="384.0">Calibration</tspan><tspan x="384.0" dy="16" class="s">based on the WGL</tspan><tspan x="384.0" dy="16" class="s">CMP calibration</tspan><tspan x="384.0" dy="16">+ time-synchronisation</tspan></text>
+<a href="https://doi.org/10.1109/TNSRE.2025.3622734" target="_blank" rel="noopener"><text x="384.0" y="36" class="cite">Castellaz et al. 2025</text></a>
+<polyline points="470,78.09836065573771 507,78.09836065573771" class="arr"/>
+<g transform="translate(79,0)">
+<rect x="430" y="48" width="110" height="140" rx="7" class="box"/>
+<text x="485" y="88" class="t"><tspan x="485">Images + IMU</tspan><tspan x="485" dy="16" class="s">4 datasets</tspan><tspan x="485" dy="16" class="s">mocap · Oxford</tspan><tspan x="485" dy="16" class="s">Aria office</tspan><tspan x="485" dy="16" class="s">SlugTrails</tspan></text>
+<rect x="562" y="44" width="450" height="150" rx="7" class="grp"/>
+<text x="787" y="61" class="gl">SLAM module</text>
+<polyline points="541,88 570,88" class="arr"/>
+<polyline points="541,160 580,160" class="arr"/>
+<rect x="572" y="68" width="430" height="40" rx="7" class="box"/>
+<text x="787" y="84" class="t"><tspan x="787">Visual-inertial SLAM</tspan><tspan x="787" dy="16" class="n">MASt3R-Fusion · VIGS-SLAM · FoundationVIO</tspan></text>
+<rect x="572" y="112" width="430" height="78" rx="7" class="branch"/>
+<text x="787" y="128" class="gl">video-only models: + EPO + our IMU integration</text>
+<rect x="582" y="134" width="118" height="52" rx="7" class="box dash"/>
+<text x="641" y="155" class="t"><tspan x="641">VidMap</tspan><tspan x="641" dy="16">LingBot-Map</tspan></text>
+<polyline points="701,160 712,160" class="arr"/>
+<rect x="714" y="134" width="106" height="52" rx="7" class="box"/>
+<text x="767" y="155" class="t"><tspan x="767">EPO</tspan><tspan x="767" dy="16" class="s">with / without</tspan></text>
+<polyline points="821,160 832,160" class="arr"/>
+<rect x="834" y="134" width="158" height="52" rx="7" class="box ours"/>
+<text x="913" y="149" class="t"><tspan x="913">IMU pre-integration</tspan><tspan x="913" dy="16">+ VI factor graph</tspan><tspan x="913" dy="16" class="s">ours: + VI / + VIS</tspan></text>
+<polyline points="1013,119 1036,119" class="arr"/>
+<rect x="1038" y="84" width="352" height="70" rx="7" class="box out"/>
+<text x="1214" y="110" class="t"><tspan x="1214">Trajectory vs ground truth</tspan><tspan x="1214" dy="16" class="s">motion capture · Aria MPS · floor plans</tspan><tspan x="1214" dy="16" class="s">ATE · W-AUC · RPE</tspan></text>
+</g>
+<g class="off">
+<polyline points="470,284.0 507,284.0" class="arr"/>
+<g transform="translate(79,0)">
+<rect x="430" y="259.0" width="200" height="50" rx="7" class="box"/>
+<text x="530" y="289.0" class="t"><tspan x="530">Pupil Labs analysis</tspan></text>
+<polyline points="631,284.0 658,284.0" class="arr"/>
+<rect x="660" y="259.0" width="290" height="50" rx="7" class="box out"/>
+<text x="805" y="289.0" class="t"><tspan x="805">Eye and pupillometric metrics</tspan></text>
+</g></g>
+<g class="off">
+<polyline points="470,409.0 507,409.0" class="arr"/>
+<g transform="translate(79,0)">
+<rect x="430" y="374" width="110" height="70" rx="7" class="box"/>
+<text x="485.0" y="406.0" class="t"><tspan x="485.0">Gait-sequence</tspan><tspan x="485.0" dy="16">detection</tspan></text>
+<polyline points="541,409.0 556,409.0" class="arr"/>
+<rect x="558" y="374" width="110" height="70" rx="7" class="box"/>
+<text x="613.0" y="406.0" class="t"><tspan x="613.0">Stride</tspan><tspan x="613.0" dy="16">detection</tspan></text>
+<polyline points="669,409.0 684,409.0" class="arr"/>
+<rect x="686" y="374" width="110" height="70" rx="7" class="box"/>
+<text x="741.0" y="406.0" class="t"><tspan x="741.0">Gait event</tspan><tspan x="741.0" dy="16">detection</tspan></text>
+<polyline points="797,409.0 812,409.0" class="arr"/>
+<rect x="814" y="374" width="110" height="70" rx="7" class="box"/>
+<text x="869.0" y="398.0" class="t"><tspan x="869.0">ZUPT</tspan><tspan x="869.0" dy="16" class="s">zero-velocity</tspan><tspan x="869.0" dy="16" class="s">updates</tspan></text>
+<polyline points="925,409.0 940,409.0" class="arr"/>
+<rect x="942" y="374" width="110" height="70" rx="7" class="box"/>
+<text x="997.0" y="398.0" class="t"><tspan x="997.0">WGL CMP</tspan><tspan x="997.0" dy="16" class="s">feet + CoM</tspan><tspan x="997.0" dy="16" class="s">trajectories</tspan></text>
+<polyline points="1053,409.0 1068,409.0" class="arr"/>
+<rect x="1070" y="374" width="200" height="70" rx="7" class="box out"/>
+<text x="1170" y="395" class="t"><tspan x="1170">Biomechanical metrics</tspan><tspan x="1170" dy="16" class="s">spatiotemporal · stability</tspan><tspan x="1170" dy="16" class="s">nonlinear</tspan></text>
+</g></g>
 </svg></div>
-<p class="legend">The SLAM module has two paths. Visual-inertial SLAM gives a metric trajectory by itself. Video-only SLAM (dashed: no IMU, scale unknown) is refined by EPO and then made metric by our IMU pre-integration and VI factor graph (red) — the dotted box marks the steps applied to the video-only models only. ScaRF-SLAM fuses dense depth along the trajectory into a metric point cloud. For validation, every trajectory is also compared with ground truth.</p>
+<p class="legend">The validation pipeline. Pupil Labs Neon glasses and three IMUs (pelvis, left and right foot) are calibrated and time-synchronised. The SLAM module has two paths: visual-inertial SLAM gives a metric trajectory by itself; video-only SLAM (dashed: no IMU, scale unknown) is refined by EPO and then made metric by our IMU pre-integration and VI factor graph (red) – the dotted box marks the steps applied to the video-only models only. Every trajectory is compared with ground truth. The eye-tracking and biomechanical branches are greyed out (not validated here). The overall pipeline, including ScaRF-SLAM’s dense depth fusion into a metric point cloud, is in the <a href="https://github.com/vigneshrk29/Neon-IMU-Pipeline" target="_blank" rel="noopener">Neon-IMU-Pipeline</a> repository.</p>
 
 <div class="hero"><figure><video src="assets/video_mocap.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of Mocap (Vicon / Qualisys) building up along the camera path"></video><figcaption>Mocap (Vicon / Qualisys) — Vicon_2</figcaption></figure><figure><video src="assets/video_oxford.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of Oxford Day & Night building up along the camera path"></video><figcaption>Oxford Day & Night — ORI_s10</figcaption></figure><figure><video src="assets/video_aria_office.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of Aria office building up along the camera path"></video><figcaption>Aria office — ff-2</figcaption></figure><figure><video src="assets/video_slugtrails.mp4" autoplay loop muted playsinline preload="auto" aria-label="ScaRF-SLAM map of SlugTrails building up along the camera path"></video><figcaption>SlugTrails — PS_2_0</figcaption></figure></div>
 <p class="cap">ScaRF-SLAM maps building up along our VidMap + VI trajectories, one trial per dataset (camera frame top right). Each point appears when the camera first sees it.</p>
